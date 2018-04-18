@@ -1,6 +1,7 @@
-                              Asciiquarium v1.1
-                    by Kirk Baucom <kbaucom@schizoid.com>
-                          http://www.robobunny.com
+Asciiquarium v1.1
+-------------
+by Kirk Baucom <kbaucom@schizoid.com>
+http://www.robobunny.com
 
 Asciiquarium is an aquarium/sea animation in ASCII art.
 
