@@ -516,11 +516,18 @@ sub add_fish {
     my $max_height = 9;
     my $min_height = $anim->height() - $fish_object->{'HEIGHT'};
     $fish_object->{'Y'} = int(rand($min_height - $max_height)) + $max_height;
-    if ($fish_num % 2) {
-        $fish_object->{'X'} = $anim->width() - 2;
+
+    # fill the screen on startup
+    if (!defined($old_fish)) {
+        $fish_object->{'X'} = rand($anim->width() - 2);
     }
     else {
-        $fish_object->{'X'} = 1 - $fish_object->{'WIDTH'};
+        if ($fish_num % 2) {
+            $fish_object->{'X'} = $anim->width() - 2;
+        }
+        else {
+            $fish_object->{'X'} = 1 - $fish_object->{'WIDTH'};
+        }
     }
     $anim->add_entity($fish_object);
 }
