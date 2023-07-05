@@ -276,9 +276,19 @@ sub add_all_fish {
     }
 }
 
+sub fish_images {
+    # Interleaved fishes and their masks in both directions
+    # first pointing right, then left
+    #
+    # The color schemes loosely follow this pattern:
+    # 1: body
+    # 2: dorsal fin
+    # 3: flippers
+    # 4: eye
+    # 5: mouth
+    # 6: tailfin
+    # 7: gills
 
-sub add_fish {
-    my ($old_fish, $anim) = @_;
     my @fish_image = (
 
         q{
@@ -479,26 +489,27 @@ sub add_fish {
 },
     );
 
-    # 1: body
-    # 2: dorsal fin
-    # 3: flippers
-    # 4: eye
-    # 5: mouth
-    # 6: tailfin
-    # 7: gills
+    return @fish_image;
+}
 
-    my @colors = ('c', 'C', 'r', 'R', 'y', 'Y', 'b', 'B', 'g', 'G', 'm', 'M');
+sub add_fish {
+    my ($old_fish, $anim) = @_;
+
+    my @fish_image = fish_images();
+
     my $fish_num = int(rand($#fish_image / 2));
     my $fish_index = $fish_num * 2;
     my $speed = rand(2) + .25;
     my $depth = int(rand($depth{'fish_end'} - $depth{'fish_start'})) + $depth{'fish_start'};
+    my @colormap = rand_colormap();
     my $color_mask = $fish_image[$fish_index + 1];
-    $color_mask =~ s/4/W/gm;
-    $color_mask = rand_color($color_mask);
+    $color_mask =~ s/4/W/gm; # eyes are always white
+    $color_mask = colorize_mask($color_mask, @colormap);
 
     if ($fish_num % 2) {
         $speed *= -1;
     }
+
     my $fish_object = Term::Animation::Entity->new(
         type          => 'fish',
         shape         => $fish_image[$fish_index],
@@ -511,25 +522,61 @@ sub add_fish {
         death_cb      => \&add_fish,
         physical      => 1,
         coll_handler  => \&fish_collision,
+        data          => {
+                'fish_num' => $fish_num,
+                'colormap' => \@colormap,
+        },
     );
 
     my $max_height = 9;
     my $min_height = $anim->height() - $fish_object->{'HEIGHT'};
     $fish_object->{'Y'} = int(rand($min_height - $max_height)) + $max_height;
-    if ($fish_num % 2) {
-        $fish_object->{'X'} = $anim->width() - 2;
+
+    # fill the screen on startup
+    if (!defined($old_fish)) {
+        $fish_object->{'X'} = rand($anim->width() - 2);
     }
     else {
-        $fish_object->{'X'} = 1 - $fish_object->{'WIDTH'};
+        if ($fish_num % 2) {
+            $fish_object->{'X'} = $anim->width() - 2;
+        }
+        else {
+            $fish_object->{'X'} = 1 - $fish_object->{'WIDTH'};
+        }
     }
     $anim->add_entity($fish_object);
 }
 
+sub turn_fish_around {
+    my ($fish) = @_;
+    my @fish_image = fish_images();
+    my $fish_num = $fish->data->{'fish_num'};
+
+    $fish_num = ($fish_num % 2) ? $fish_num-1 : $fish_num+1;
+
+    $fish->data->{'fish_num'} = $fish_num;
+    $fish->callback_args->[0] *= -1;
+    $fish->shape($fish_image[2*$fish_num]);
+
+    my $color_mask = $fish_image[2*$fish_num+1];
+    $color_mask =~ s/4/W/gm;
+    $color_mask = colorize_mask($color_mask, @{$fish->data->{'colormap'}});
+    $fish->color_mask($color_mask);
+}
+
 sub fish_callback {
     my ($fish, $anim) = @_;
+
     if (int(rand(100)) > 97) {
         add_bubble($fish, $anim);
     }
+
+    if (int(rand(400)) > 397){
+        turn_fish_around($fish);
+        # do not move this frame as the fish is turning around
+        return;
+    }
+
     return $fish->move_entity($anim);
 }
 
@@ -1152,7 +1199,7 @@ sub add_big_fish {
     my $max_height = 9;
     my $min_height = $anim->height() - 15;
     my $y = int(rand($min_height - $max_height)) + $max_height;
-    my $color_mask = rand_color($big_fish_mask[$dir]);
+    my $color_mask = colorize_mask($big_fish_mask[$dir], rand_colormap());
     $anim->new_entity(
         shape         => $big_fish_image[$dir],
         auto_trans    => 1,
@@ -1469,12 +1516,20 @@ sub center {
     }
 }
 
-sub rand_color {
-    my ($color_mask) = @_;
+sub colorize_mask {
+    my ($mask, @colormap) = @_;
+    foreach my $i (0 .. $#colormap) {
+        $mask =~ s/$i/$colormap[$i]/gm;
+    }
+    return $mask;
+}
+
+sub rand_colormap {
     my @colors = ('c', 'C', 'r', 'R', 'y', 'Y', 'b', 'B', 'g', 'G', 'm', 'M');
+    my @colormap = ();
     foreach my $i (1 .. 9) {
         my $color = $colors[int(rand($#colors))];
-        $color_mask =~ s/$i/$color/gm;
+        push(@colormap, $color);
     }
-    return $color_mask;
+    return @colormap;
 }
